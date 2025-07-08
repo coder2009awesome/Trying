@@ -4,16 +4,12 @@ from oauth2client.service_account import ServiceAccountCredentials
 from datetime import datetime
 import json
 
-# ------------------ Google Sheets Setup ------------------
 SCOPE = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
 
 creds_dict = st.secrets["google_sheets"]
 creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, SCOPE)
-SHEET_NAME = "CodingCourse"  # Google Sheet with tabs: Users, Submissions, Content
+SHEET_NAME = "CodingCourse"
 
-'''creds_dict = st.secrets["google_sheets"]
-creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, SCOPE)
-'''
 @st.cache_resource
 
 def get_sheets():
@@ -27,7 +23,6 @@ def get_sheets():
 
 sheet_users, sheet_submissions, sheet_content = get_sheets()
 
-# ------------------ User System ------------------
 def load_users():
     records = sheet_users.get_all_records()
     return {row["username"]: row["password"] for row in records}
@@ -43,12 +38,8 @@ def login_user(username, password):
             return True, {"username": username, "allowed_categories": allowed_categories}
     return False, "User does not exist."
 
-
-
-# ------------------ Course Content ------------------
 def load_course():
     records = sheet_content.get_all_records()
-    # Must have 'category', 'section', and 'content' columns
     course = {}
     for row in records:
         category = row["category"]
@@ -79,7 +70,6 @@ def display_course_section(username, section_name, section_content):
         elif submit:
             st.error("Please provide a title for your submission.")
 
-# ------------------ User Submissions ------------------
 def show_user_submissions(username, section):
     st.subheader("📂 Your Submissions for This Section")
     all_rows = sheet_submissions.get_all_records()
@@ -112,9 +102,6 @@ def show_user_submissions(username, section):
                         sheet_submissions.delete_rows(row_num)
                         st.warning("Submission deleted. Please refresh.")
 
-
-
-# ------------------ Main App ------------------
 def main():
     st.set_page_config("Python Course Portal", layout="wide")
     st.title("Brainiac Learning")
@@ -132,7 +119,7 @@ def main():
             if success:
                 st.session_state.logged_in = True
                 st.session_state.username = result["username"]
-                st.session_state.allowed_categories = result["allowed_categories"]  # None = see all
+                st.session_state.allowed_categories = result["allowed_categories"]
                 st.rerun()
             else:
                 st.error(result)
@@ -146,7 +133,7 @@ def main():
             st.session_state.allowed_categories = None
             for k in list(st.session_state.keys()):
                 if k.startswith("select_"):
-                    del st.session_state[k]  # Clear dropdown selections
+                    del st.session_state[k]
             st.rerun()
 
         course = load_course()
@@ -155,10 +142,9 @@ def main():
         st.sidebar.markdown("## 📚 Course Sections")
 
         for category, sections in course.items():
-            # Check if user has access
             allowed = st.session_state.allowed_categories
             if allowed is not None and category not in allowed:
-                continue  # Skip if not allowed
+                continue
 
             section_names = ["None"] + list(sections.keys())
             selected = st.sidebar.selectbox(f"Select section under {category}", section_names, key=f"select_{category}")
