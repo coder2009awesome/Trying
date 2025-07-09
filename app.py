@@ -113,7 +113,10 @@ def show_user_submissions(username, section):
 
 def run_python_playground():
     st.title("🧪 Python Playground")
-    st.write("Type Python code below and run it. You can't install packages or access files.")
+    st.write("Type Python code below and run it. You can't install packages or use `input()` directly.")
+
+    # Simulated input value
+    fake_input = st.text_input("Simulated input() value")
 
     code = st.text_area("Your Python Code", height=200)
 
@@ -122,32 +125,34 @@ def run_python_playground():
         try:
             with contextlib.redirect_stdout(output):
                 with contextlib.redirect_stderr(output):
-                    exec(code, {"__builtins__": {  # Restrict built-ins
-                        "print": print,
-                        "range": range,
-                        "len": len,
-                        "int": int,
-                        "float": float,
-                        "str": str,
-                        "list": list,
-                        "dict": dict,
-                        "set": set,
-                        "tuple": tuple,
-                        "bool": bool,
-                        "enumerate": enumerate,
-                        "zip": zip,
-                        "abs": abs,
-                        "min": min,
-                        "max": max,
-                        "sum": sum,
-                    }})
+                    # Restrict built-ins and override input()
+                    exec(code, {
+                        "__builtins__": {
+                            "print": print,
+                            "range": range,
+                            "len": len,
+                            "int": int,
+                            "float": float,
+                            "str": str,
+                            "list": list,
+                            "dict": dict,
+                            "set": set,
+                            "tuple": tuple,
+                            "bool": bool,
+                            "enumerate": enumerate,
+                            "zip": zip,
+                            "abs": abs,
+                            "min": min,
+                            "max": max,
+                            "sum": sum,
+                            "input": lambda prompt="": fake_input
+                        }
+                    })
         except Exception as e:
             output.write(f"⚠️ Error: {e}")
 
         st.code(output.getvalue(), language="text")
 
-
-# ------------------ Main App ------------------
 def main():
     st.set_page_config("Python Course Portal", layout="wide")
     st.title("Brainiac Learning")
