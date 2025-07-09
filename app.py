@@ -2,13 +2,16 @@ import streamlit as st
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 from datetime import datetime
+import io
+import contextlib
 import json
 
+# ------------------ Google Sheets Setup ------------------
 SCOPE = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
 
 creds_dict = st.secrets["google_sheets"]
 creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, SCOPE)
-SHEET_NAME = "CodingCourse"
+SHEET_NAME = "CodingCourse"  # Google Sheet with tabs: Users, Submissions, Content
 
 @st.cache_resource
 
@@ -23,6 +26,7 @@ def get_sheets():
 
 sheet_users, sheet_submissions, sheet_content = get_sheets()
 
+# ------------------ User System ------------------
 def load_users():
     records = sheet_users.get_all_records()
     return {row["username"]: row["password"] for row in records}
@@ -38,8 +42,12 @@ def login_user(username, password):
             return True, {"username": username, "allowed_categories": allowed_categories}
     return False, "User does not exist."
 
+
+
+# ------------------ Course Content ------------------
 def load_course():
     records = sheet_content.get_all_records()
+    # Must have 'category', 'section', and 'content' columns
     course = {}
     for row in records:
         category = row["category"]
@@ -70,6 +78,7 @@ def display_course_section(username, section_name, section_content):
         elif submit:
             st.error("Please provide a title for your submission.")
 
+# ------------------ User Submissions ------------------
 def show_user_submissions(username, section):
     st.subheader("📂 Your Submissions for This Section")
     all_rows = sheet_submissions.get_all_records()
@@ -102,10 +111,46 @@ def show_user_submissions(username, section):
                         sheet_submissions.delete_rows(row_num)
                         st.warning("Submission deleted. Please refresh.")
 
+def run_python_playground():
+    st.title("🧪 Python Playground")
+    st.write("Type Python code below and run it. You can't install packages or access files.")
+
+    code = st.text_area("Your Python Code", height=200)
+
+    if st.button("Run Code"):
+        output = io.StringIO()
+        try:
+            with contextlib.redirect_stdout(output):
+                with contextlib.redirect_stderr(output):
+                    exec(code, {"__builtins__": {  # Restrict built-ins
+                        "print": print,
+                        "range": range,
+                        "len": len,
+                        "int": int,
+                        "float": float,
+                        "str": str,
+                        "list": list,
+                        "dict": dict,
+                        "set": set,
+                        "tuple": tuple,
+                        "bool": bool,
+                        "enumerate": enumerate,
+                        "zip": zip,
+                        "abs": abs,
+                        "min": min,
+                        "max": max,
+                        "sum": sum,
+                    }})
+        except Exception as e:
+            output.write(f"⚠️ Error: {e}")
+
+        st.code(output.getvalue(), language="text")
+
+
+# ------------------ Main App ------------------
 def main():
     st.set_page_config("Python Course Portal", layout="wide")
     st.title("Brainiac Learning")
-
     if "logged_in" not in st.session_state:
         st.session_state.logged_in = False
         st.session_state.username = ""
@@ -119,13 +164,14 @@ def main():
             if success:
                 st.session_state.logged_in = True
                 st.session_state.username = result["username"]
-                st.session_state.allowed_categories = result["allowed_categories"]
+                st.session_state.allowed_categories = result["allowed_categories"]  # None = see all
                 st.rerun()
             else:
                 st.error(result)
 
 
     else:
+
         st.sidebar.success(f"Logged in as {st.session_state.username}")
         if st.sidebar.button("Logout"):
             st.session_state.logged_in = False
@@ -133,32 +179,38 @@ def main():
             st.session_state.allowed_categories = None
             for k in list(st.session_state.keys()):
                 if k.startswith("select_"):
-                    del st.session_state[k]
+                    del st.session_state[k]  # Clear dropdown selections
             st.rerun()
 
         course = load_course()
         selected_section = None
 
-        st.sidebar.markdown("## 📚 Course Sections")
+        tool = st.sidebar.radio("Select a tool", ["Course", "Python Playground"])
 
-        for category, sections in course.items():
-            allowed = st.session_state.allowed_categories
-            if allowed is not None and category not in allowed:
-                continue
-
-            section_names = ["None"] + list(sections.keys())
-            selected = st.sidebar.selectbox(f"Select section under {category}", section_names, key=f"select_{category}")
-
-            if selected != "None":
-                selected_section = (category, selected)
-
-        if selected_section:
-            category, section_name = selected_section
-            display_course_section(st.session_state.username, section_name, course[category][section_name])
-            st.markdown("---")
-            show_user_submissions(st.session_state.username, section_name)
+        if tool == "Python Playground":
+            run_python_playground()
         else:
-            st.info("Please select a lesson section from the sidebar.")
+            st.sidebar.markdown("## 📚 Course Sections")
+
+            for category, sections in course.items():
+                # Check if user has access
+                allowed = st.session_state.allowed_categories
+                if allowed is not None and category not in allowed:
+                    continue  # Skip if not allowed
+
+                section_names = ["None"] + list(sections.keys())
+                selected = st.sidebar.selectbox(f"Select section under {category}", section_names, key=f"select_{category}")
+
+                if selected != "None":
+                    selected_section = (category, selected)
+
+            if selected_section:
+                category, section_name = selected_section
+                display_course_section(st.session_state.username, section_name, course[category][section_name])
+                st.markdown("---")
+                show_user_submissions(st.session_state.username, section_name)
+            else:
+                st.info("Please select a lesson section from the sidebar.")
 
 
 if __name__ == "__main__":
