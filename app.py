@@ -5,6 +5,7 @@ from datetime import datetime
 import io
 import contextlib
 import json
+import textwrap
 
 # ------------------ Google Sheets Setup ------------------
 SCOPE = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
@@ -64,7 +65,8 @@ def load_course():
 def display_course_section(username, section_name, section_content):
     st.header(section_name)
     for content in section_content:
-        st.markdown(content, unsafe_allow_html=True)
+        clean_text = textwrap.fill(content, width=100)
+        st.text(clean_text)
 
     with st.form(f"form_{section_name}"):
         st.subheader("Submit")
