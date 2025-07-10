@@ -6,6 +6,7 @@ import io
 import contextlib
 import json
 import textwrap
+import re
 
 # ------------------ Google Sheets Setup ------------------
 SCOPE = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
@@ -65,8 +66,8 @@ def load_course():
 def display_course_section(username, section_name, section_content):
     st.header(section_name)
     for content in section_content:
-        clean_text = textwrap.fill(content, width=100)
-        st.text(clean_text)
+        fixed = re.sub(r'(?<=\d)\. ', r'.\n', content)
+        st.text(fixed)
 
     with st.form(f"form_{section_name}"):
         st.subheader("Submit")
