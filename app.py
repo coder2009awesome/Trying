@@ -66,8 +66,8 @@ def load_course():
 def display_course_section(username, section_name, section_content):
     st.header(section_name)
     for content in section_content:
-        fixed = re.sub(r'(?<=\d)\. ', r'.\n', content)
-        st.text(fixed)
+        st.markdown(f"### {section_name}")
+        st.markdown(content.replace("\n", "\n\n"))
 
     with st.form(f"form_{section_name}"):
         st.subheader("Submit")
